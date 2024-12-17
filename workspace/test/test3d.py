@@ -1,42 +1,49 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from setuptools.sandbox import save_path
 
-# 假设 `new_matrix` 是插值后的 3x3x3 矩阵
-new_matrix = np.random.random((3, 3, 3))  # 用随机数据替代
 
-# 获取矩阵的 x, y, z 坐标
-x, y, z = np.indices(new_matrix.shape)
+def shape_3d(new_matrix):
+    x, y, z = np.indices(new_matrix.shape)
 
-# 展平矩阵和坐标
-values = new_matrix.flatten()
-x_coords = x.flatten()
-y_coords = y.flatten()
-z_coords = z.flatten()
+    # 展平矩阵和坐标
+    values = new_matrix.flatten()
+    z_coords = x.flatten()
+    y_coords = y.flatten()
+    x_coords = z.flatten()
 
-# 创建三维图
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+    # 创建三维图
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
 
-# 绘制每个 (x, y, z) 对应的点的直方图
-hist, xedges, yedges = np.histogram2d(x_coords, y_coords, bins=new_matrix.shape[0])
+    zpos = z_coords  # 条形图的底部位置
 
-# 使用 bar3d 创建三维直方图
-xpos, ypos = np.meshgrid(xedges[:-1] + 0.25, yedges[:-1] + 0.25, indexing="ij")
-xpos = xpos.ravel()
-ypos = ypos.ravel()
-zpos = 0
+    # 设置条形图的大小
+    dx = dy = 0.5 * np.ones_like(zpos)  # 每个条的宽度
+    dz = (values/np.max(new_matrix)*0.7)# 条的高度，即对应的矩阵值
 
-# 设置直方图的大小
-dx = dy = 0.5 * np.ones_like(zpos)
-dz = hist.ravel()
+    # 生成 3D 直方图
+    ax.bar3d(x_coords, y_coords, zpos, dx, dy, dz)
 
-# 生成 3D 直方图
-ax.bar3d(xpos, ypos, zpos, dx, dy, dz, zsort='average')
+    # 添加标签
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
 
-# 添加标签
-ax.set_xlabel('X Coordinate')
-ax.set_ylabel('Y Coordinate')
-ax.set_zlabel('Value')
+    # 移除坐标轴的刻度和标签
+    ax.set_xticks([])  # 不显示 X 轴的刻度
+    ax.set_yticks([])  # 不显示 Y 轴的刻度
+    ax.set_zticks([])  # 不显示 Z 轴的刻度
 
-plt.show()
+
+    # 设置坐标轴的范围（可选）
+    ax.set_xlim([0, new_matrix.shape[0]])
+    ax.set_ylim([0, new_matrix.shape[1]])
+    ax.set_zlim([0, new_matrix.shape[2]])
+
+    # 设置坐标轴比例
+    ax.set_box_aspect([1, 1, 1.8])
+
+    # 显示图形
+    plt.show()
+
