@@ -1,49 +1,71 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from setuptools.sandbox import save_path
+import numpy as np
+import torch
+import torch.nn.functional as F
+from matplotlib.animation import FuncAnimation
+from scipy.ndimage import label
 
+def keep_largest_region(matrix):
+    labeled_matrix, num_features = label(matrix)
 
-def shape_3d(new_matrix):
-    x, y, z = np.indices(new_matrix.shape)
+    # 如果没有连通区域，直接返回全零矩阵
+    if num_features == 0:
+        return np.zeros_like(matrix, dtype=int)
 
-    # 展平矩阵和坐标
-    values = new_matrix.flatten()
-    z_coords = x.flatten()
-    y_coords = y.flatten()
-    x_coords = z.flatten()
+    # 找到最大区域（直接计算每个区域的大小）
+    region_sizes = np.bincount(labeled_matrix.ravel())
+    region_sizes[0] = 0  # 忽略背景区域（标签为0）
+    max_region_label = np.argmax(region_sizes)
 
-    # 创建三维图
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    # 直接构造仅包含最大区域的矩阵
+    return (labeled_matrix == max_region_label).astype(int)
 
-    zpos = z_coords  # 条形图的底部位置
+def interpolate_3d_torch(matrix, new_shape):
+    # 将 numpy 转为 torch 张量，并添加批量和通道维度（维度顺序：batch_size, channels, depth, height, width）
+    matrix_tensor = torch.tensor(matrix, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 
-    # 设置条形图的大小
-    dx = dy = 0.5 * np.ones_like(zpos)  # 每个条的宽度
-    dz = (values/np.max(new_matrix)*0.7)# 条的高度，即对应的矩阵值
+    # 计算每个维度的 scale_factor
+    old_shape = matrix.shape
+    scale_factors = [n / o for n, o in zip(new_shape, old_shape)]
 
-    # 生成 3D 直方图
-    ax.bar3d(x_coords, y_coords, zpos, dx, dy, dz)
+    # 使用 PyTorch 的三线性插值
+    new_tensor = F.interpolate(matrix_tensor, scale_factor=scale_factors, mode='trilinear', align_corners=True)
 
-    # 添加标签
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
+    # 移除批量和通道维度，返回 numpy 数组
+    return new_tensor.squeeze().numpy()
 
-    # 移除坐标轴的刻度和标签
-    ax.set_xticks([])  # 不显示 X 轴的刻度
-    ax.set_yticks([])  # 不显示 Y 轴的刻度
-    ax.set_zticks([])  # 不显示 Z 轴的刻度
+def matrix_look(data):
+    fig, ax = plt.subplots()
 
+    # 设置imshow
+    im = ax.imshow(data[0], cmap='gray')
+    plt.colorbar(im)
 
-    # 设置坐标轴的范围（可选）
-    ax.set_xlim([0, new_matrix.shape[0]])
-    ax.set_ylim([0, new_matrix.shape[1]])
-    ax.set_zlim([0, new_matrix.shape[2]])
+    # 更新函数
+    def update(frame):
+        im.set_array(data[frame])
+        ax.set_title(f'Slice {frame}')
+        return [im]
 
-    # 设置坐标轴比例
-    ax.set_box_aspect([1, 1, 1.8])
+    # 创建动画
+    ani = FuncAnimation(fig, update, frames=data.shape[0], interval=200, blit=True)
 
-    # 显示图形
+    # 显示动画
     plt.show()
 
+    return 0
+
+def matrix_look_one(data,slice_index):  # 选择切片索引
+    plt.imshow(data[slice_index], cmap='gray')  # 使用'gray' colormap，或根据需要选择其他
+    plt.colorbar()
+    plt.title(f'Slice {slice_index}')
+    plt.show()
+
+    return 0
+
+def matrix_look_one_2d(data):  # 选择切片索引
+    plt.imshow(data, cmap='gray')  # 使用'gray' colormap，或根据需要选择其他
+    plt.colorbar()
+    plt.show()
+
+    return 0
